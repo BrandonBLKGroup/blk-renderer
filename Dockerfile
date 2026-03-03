@@ -18,9 +18,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application
 COPY render.py server.py ./
 
-# Copy template files (from repo root)
-COPY BLK_Group_-_LPT_-_Social_Media_-_TEMPLATE.psd /app/templates/
-COPY Antro_Vectra.otf /app/templates/
+# Copy template files (from templates/ folder in repo)
+COPY templates/ /app/templates/
 
 EXPOSE 8080
 
