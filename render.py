@@ -93,8 +93,8 @@ def render_blk_graphic(listing, photo_urls, graphic_type='Just Listed!'):
 
     # 8. Load fonts
     antro = load_font(ANTRO_PATH, ANTRO_PATH, 75)
-    spec_font = load_font(FALLBACK_LIGHT, FALLBACK_LIGHT, 14)
-    addr_font = load_font(FALLBACK_BOLD, FALLBACK_BOLD, 68)
+    spec_font = load_font(FALLBACK_LIGHT, FALLBACK_LIGHT, 16)
+    addr_font = load_font(FALLBACK_BOLD, FALLBACK_BOLD, 78)
     city_font = load_font(FALLBACK_LIGHT, FALLBACK_LIGHT, 28)
 
     # 9. Draw graphic type (AntroVectra, top-right)
@@ -110,19 +110,21 @@ def render_blk_graphic(listing, photo_urls, graphic_type='Just Listed!'):
     price = listing.get('price', 0)
     spec_color = (80, 80, 80)
     draw.text((27, 83), f"{beds}  B E D R O O M S", fill=spec_color, font=spec_font)
-    draw.text((137, 109), f"{baths}  B A T H R O O M S", fill=spec_color, font=spec_font)
-    draw.text((281, 83), f"{sqft:,}  S Q U A R E  F E E T", fill=spec_color, font=spec_font)
-    draw.text((451, 109), f"${price:,}  D O L L A R S", fill=spec_color, font=spec_font)
+    draw.text((180, 109), f"{baths}  B A T H R O O M S", fill=spec_color, font=spec_font)
+    draw.text((340, 83), f"{sqft:,}  S Q U A R E  F E E T", fill=spec_color, font=spec_font)
+    draw.text((540, 109), f"${price:,}  D O L L A R S", fill=spec_color, font=spec_font)
 
-    # 11. Draw address
+    # 11. Draw address - large bold
     street = listing.get('street', '')
-    draw.text((45, 1005), street, fill=(17, 17, 17), font=addr_font)
+    draw.text((35, 990), street, fill=(17, 17, 17), font=addr_font)
+
+    # City centered below address
     city = listing.get('city', '')
     state = listing.get('state', 'AR')
     city_text = f"{city.upper()},  {state.upper()}"
     city_bb = draw.textbbox((0, 0), city_text, font=city_font)
     city_w = city_bb[2] - city_bb[0]
-    draw.text((600 - city_w // 2, 1090), city_text, fill=(100, 100, 100), font=city_font)
+    draw.text((400 - city_w // 2, 1080), city_text, fill=(100, 100, 100), font=city_font)
 
     # 12. Export
     buf = io.BytesIO()
