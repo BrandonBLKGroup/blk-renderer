@@ -4,17 +4,35 @@ Takes listing data + photo URLs, renders pixel-perfect graphic from PSD template
 """
 from psd_tools import PSDImage
 from PIL import Image, ImageDraw, ImageFont
-import io, os, requests
+import io, os, requests, glob
 
 TEMPLATE_DIR = os.environ.get('TEMPLATE_DIR', '/app/templates')
-PSD_PATH = os.path.join(TEMPLATE_DIR, 'BLK_Group_-_LPT_-_Social_Media_-_TEMPLATE.psd')
-ANTRO_PATH = os.path.join(TEMPLATE_DIR, 'Antro_Vectra.otf')
-OUTFIT_300_PATH = os.path.join(TEMPLATE_DIR, 'Outfit-Light.ttf')
-OUTFIT_700_PATH = os.path.join(TEMPLATE_DIR, 'Outfit-Bold.ttf')
+
+# Find PSD file dynamically (handles spaces vs underscores in filename)
+PSD_PATH = None
+for f in os.listdir(TEMPLATE_DIR) if os.path.isdir(TEMPLATE_DIR) else []:
+    if f.lower().endswith('.psd'):
+        PSD_PATH = os.path.join(TEMPLATE_DIR, f)
+        break
+if not PSD_PATH:
+    PSD_PATH = os.path.join(TEMPLATE_DIR, 'BLK_Group_-_LPT_-_Social_Media_-_TEMPLATE.psd')
+
+# Find font file dynamically
+ANTRO_PATH = None
+for f in os.listdir(TEMPLATE_DIR) if os.path.isdir(TEMPLATE_DIR) else []:
+    if 'antro' in f.lower() or 'vectra' in f.lower():
+        ANTRO_PATH = os.path.join(TEMPLATE_DIR, f)
+        break
+if not ANTRO_PATH:
+    ANTRO_PATH = os.path.join(TEMPLATE_DIR, 'Antro_Vectra.otf')
 
 # Fallback system fonts
 FALLBACK_LIGHT = '/usr/share/fonts/truetype/dejavu/DejaVuSans-ExtraLight.ttf'
 FALLBACK_BOLD = '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf'
+
+print(f"[BLK] PSD_PATH: {PSD_PATH} (exists: {os.path.exists(PSD_PATH)})")
+print(f"[BLK] ANTRO_PATH: {ANTRO_PATH} (exists: {os.path.exists(ANTRO_PATH)})")
+print(f"[BLK] Templates dir contents: {os.listdir(TEMPLATE_DIR) if os.path.isdir(TEMPLATE_DIR) else 'NOT FOUND'}")
 
 def load_font(path, fallback, size):
     try:
@@ -33,7 +51,6 @@ def download_photo(url):
         return Image.open(io.BytesIO(resp.content)).convert('RGB')
     except Exception as e:
         print(f"[BLK] Photo download failed: {e}")
-        # Return a gray placeholder
         return Image.new('RGB', (800, 600), (200, 200, 200))
 
 def render_blk_graphic(listing, photo_urls, graphic_type='Just Listed!'):
@@ -57,28 +74,19 @@ def render_blk_graphic(listing, photo_urls, graphic_type='Just Listed!'):
     # 2. Save LPT logo block BEFORE white-out
     lpt_logo = canvas.crop((700, 415, 1200, 680))
     
-    # 3. Save BLK circle and MAKEARKANSASHOME area (bottom section stays)
-    # We only white-out the photo grid and text replacement areas
-    
-    # 4. White-out photo grid (y:130 to y:935)
+    # 3. White-out photo grid (y:130 to y:935)
     draw = ImageDraw.Draw(canvas)
     draw.rectangle([0, 130, 1200, 935], fill=(255, 255, 255))
     
-    # 5. Download and place photos
+    # 4. Download and place photos
     photos = []
     for url in photo_urls[:4]:
         photos.append(download_photo(url))
     
-    # Pad with duplicates if less than 4
     while len(photos) < 4:
         photos.append(photos[0] if photos else Image.new('RGB', (800, 600), (200, 200, 200)))
     
-    # Photo grid slots:
-    # top-left hero: (0, 160) 670x400
-    # top-right: (710, 160) 490x245
-    # bottom-left: (0, 568) 670x340
-    # bottom-right: (710, 690) 490x230
-    
+    # Photo grid slots
     p1 = photos[0].resize((670, 400), Image.LANCZOS)
     canvas.paste(p1, (0, 160))
     
@@ -91,34 +99,33 @@ def render_blk_graphic(listing, photo_urls, graphic_type='Just Listed!'):
     p4 = photos[3].resize((490, 230), Image.LANCZOS)
     canvas.paste(p4, (710, 690))
     
-    # 6. Paste LPT logo back over the photo grid
+    # 5. Paste LPT logo back
     canvas.paste(lpt_logo, (700, 415))
     
-    # 7. Draw white dividers
+    # 6. Draw white dividers
     draw = ImageDraw.Draw(canvas)
-    draw.rectangle([670, 130, 710, 935], fill=(255, 255, 255))  # vertical
-    draw.rectangle([0, 558, 670, 570], fill=(255, 255, 255))     # horizontal
+    draw.rectangle([670, 130, 710, 935], fill=(255, 255, 255))
+    draw.rectangle([0, 558, 670, 570], fill=(255, 255, 255))
     
-    # 8. White-out text replacement areas
-    draw.rectangle([0, 75, 670, 130], fill=(255, 255, 255))   # specs text
-    draw.rectangle([0, 935, 850, 1200], fill=(255, 255, 255)) # address area
+    # 7. White-out text areas
+    draw.rectangle([0, 75, 670, 130], fill=(255, 255, 255))
+    draw.rectangle([0, 935, 850, 1200], fill=(255, 255, 255))
     
-    # 9. Load fonts
+    # 8. Load fonts
     antro = load_font(ANTRO_PATH, ANTRO_PATH, 75)
-    spec_font = load_font(OUTFIT_300_PATH, FALLBACK_LIGHT, 14)
-    addr_font = load_font(OUTFIT_700_PATH, FALLBACK_BOLD, 68)
-    city_font = load_font(OUTFIT_300_PATH, FALLBACK_LIGHT, 28)
+    spec_font = load_font(FALLBACK_LIGHT, FALLBACK_LIGHT, 14)
+    addr_font = load_font(FALLBACK_BOLD, FALLBACK_BOLD, 68)
+    city_font = load_font(FALLBACK_LIGHT, FALLBACK_LIGHT, 28)
     
-    # 10. Draw graphic type (AntroVectra, top-right)
+    # 9. Draw graphic type (AntroVectra, top-right)
     gt = graphic_type
     gt_bb = draw.textbbox((0, 0), gt, font=antro)
     gt_w = gt_bb[2] - gt_bb[0]
-    # Center in top-right zone (center around x=938)
     draw.text((938 - gt_w // 2, 30), gt, fill=(17, 17, 17), font=antro)
     
-    # 11. Draw specs
-    beds = listing.get('beds', '—')
-    baths = listing.get('baths', '—')
+    # 10. Draw specs
+    beds = listing.get('beds', 0)
+    baths = listing.get('baths', 0)
     sqft = listing.get('sqft', 0)
     price = listing.get('price', 0)
     
@@ -128,11 +135,10 @@ def render_blk_graphic(listing, photo_urls, graphic_type='Just Listed!'):
     draw.text((281, 83), f"{sqft:,}  S Q U A R E  F E E T", fill=spec_color, font=spec_font)
     draw.text((451, 109), f"${price:,}  D O L L A R S", fill=spec_color, font=spec_font)
     
-    # 12. Draw address
+    # 11. Draw address
     street = listing.get('street', '')
     draw.text((45, 1005), street, fill=(17, 17, 17), font=addr_font)
     
-    # City centered
     city = listing.get('city', '')
     state = listing.get('state', 'AR')
     city_text = f"{city.upper()},  {state.upper()}"
@@ -140,7 +146,7 @@ def render_blk_graphic(listing, photo_urls, graphic_type='Just Listed!'):
     city_w = city_bb[2] - city_bb[0]
     draw.text((600 - city_w // 2, 1090), city_text, fill=(100, 100, 100), font=city_font)
     
-    # 13. Export as PNG bytes
+    # 12. Export as PNG bytes
     buf = io.BytesIO()
     canvas.save(buf, format='PNG', quality=95)
     buf.seek(0)
@@ -150,7 +156,6 @@ def render_blk_graphic(listing, photo_urls, graphic_type='Just Listed!'):
 
 
 if __name__ == '__main__':
-    # Test render
     test_listing = {
         'street': '8 Finchley Lane',
         'city': 'Bella Vista',
