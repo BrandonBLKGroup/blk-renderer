@@ -1,5 +1,5 @@
 flask==3.0.0
 gunicorn==21.2.0
-psd-tools==1.9.32
+psd-tools==1.10.2
 Pillow==10.4.0
 requests==2.31.0
